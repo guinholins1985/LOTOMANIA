@@ -49,7 +49,7 @@ const ConfigCard: React.FC<ConfigCardProps> = ({ config, setConfig, nextConcurso
   return (
     <div className="bg-[#1A1A2E] p-6 rounded-2xl border-t-2 border-l-2 border-purple-500/50 shadow-2xl shadow-purple-500/10">
       <div className="mb-4">
-        <h2 className="text-lg font-bold text-gray-100">Algoritmo matemático de alta precisão para acertos de 16-20 pontos</h2>
+        <h2 className="text-lg font-bold text-gray-100">Sistema de Análise Preditiva: Combina números quentes, frios e dezenas-chave para maximizar a cobertura e a chance de acertos de 16-20 pontos.</h2>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <InputField 

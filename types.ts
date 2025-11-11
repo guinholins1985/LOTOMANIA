@@ -1,14 +1,4 @@
-export interface GameConfig {
-  numGames: string;
-  fixedNumbers: string;
-  groups: string;
-  targetConcurso: string;
-  ultraSystem: boolean;
-  mirrorBet: boolean;
-  advancedAnalysis: boolean;
-}
-
-export interface PremiacaoItem {
+export interface Premiacao {
   acertos: number;
   vencedores: number;
   premio: string;
@@ -19,16 +9,20 @@ export interface LastResult {
   data: string;
   numeros: string[];
   acumuladoProximoConcurso: string;
-  premiacao: PremiacaoItem[];
+  premiacao: Premiacao[];
+}
+
+export interface GameConfig {
+  numGames: string;
+  fixedNumbers: string;
+  groups: string;
+  targetConcurso: string;
+  ultraSystem: boolean;
+  mirrorBet: boolean;
+  advancedAnalysis: boolean;
 }
 
 export interface GeneratedGames {
   analysis: string;
   games: string[][];
-}
-
-export interface CheckedGame {
-  gameNumbers: string[];
-  hitCount: number;
-  hits: Set<string>;
 }
