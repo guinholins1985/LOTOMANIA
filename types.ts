@@ -26,3 +26,10 @@ export interface GeneratedGames {
   analysis: string;
   games: string[][];
 }
+
+export interface CheckedGame {
+  game: string[];
+  hits: number;
+  hitNumbers: Set<string>;
+  prize: number;
+}

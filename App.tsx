@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import Header from './components/Header';
 import LastResultCard from './components/LastResultCard';
@@ -26,7 +25,7 @@ const INITIAL_LAST_RESULT: LastResult = {
     { acertos: 17, vencedores: 442, premio: "R$ 284,18" },
     { acertos: 16, vencedores: 2562, premio: "R$ 49,02" },
     { acertos: 15, vencedores: 11195, premio: "R$ 11,22" },
-    { acertos: 0, vencedores: 0, premio: "R$ 0,00" }
+    { acertos: 0, vencedores: 0, premio: "R$ 125.000,00" } // Example prize for 0 hits
   ]
 };
 
@@ -45,21 +44,36 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [error, setError] = useState<string | null>(null);
+  const [isAutoSync, setIsAutoSync] = useState(true);
 
   const fetchLatestResult = useCallback(async () => {
     try {
       const result = await fetchLatestResultFromWeb();
-      setLastResult(result);
-      setConfig(prev => ({...prev, targetConcurso: (result.concurso + 1).toString()}));
+      if (result.concurso > lastResult.concurso) {
+        setLastResult(result);
+        setConfig(prev => ({...prev, targetConcurso: (result.concurso + 1).toString()}));
+        setLastUpdated(new Date());
+      }
     } catch (e: any) {
-      console.error("Failed to fetch latest result, using initial data.", e.message);
-      // Keep using INITIAL_LAST_RESULT as fallback
+      console.error("Failed to fetch latest result, using existing data.", e.message);
     }
-  }, []);
+  }, [lastResult.concurso]);
 
   useEffect(() => {
+    // Initial fetch
     fetchLatestResult();
-  }, [fetchLatestResult]);
+  }, []); // Only on mount
+
+  useEffect(() => {
+    if (isAutoSync) {
+      const intervalId = setInterval(() => {
+        console.log("Auto-syncing latest results...");
+        fetchLatestResult();
+      }, 300000); // 5 minutes
+
+      return () => clearInterval(intervalId);
+    }
+  }, [isAutoSync, fetchLatestResult]);
 
   const handleUpdate = useCallback(async () => {
     setIsLoading(true);
@@ -69,15 +83,19 @@ const App: React.FC = () => {
     try {
         // Always get the freshest result before generating
         await fetchLatestResult();
-        const result = generateLocalGames(config, lastResult);
-        setGeneratedData(result);
+        // Use a function callback with setLastResult to ensure generateLocalGames gets the most recent state
+        setLastResult(currentLastResult => {
+            const result = generateLocalGames(config, currentLastResult);
+            setGeneratedData(result);
+            return currentLastResult; // state doesn't change here
+        });
         setLastUpdated(new Date());
     } catch (e: any) {
         setError(e.message || 'Ocorreu um erro desconhecido ao gerar os jogos.');
     } finally {
         setIsLoading(false);
     }
-  }, [config, lastResult, fetchLatestResult]);
+  }, [config, fetchLatestResult]);
 
   const clearGeneratedData = () => {
     setGeneratedData(null);
@@ -90,6 +108,8 @@ const App: React.FC = () => {
           onUpdate={handleUpdate} 
           isLoading={isLoading} 
           lastUpdated={lastUpdated} 
+          isAutoSync={isAutoSync}
+          onAutoSyncChange={setIsAutoSync}
         />
 
         {error && (

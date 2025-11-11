@@ -6,6 +6,8 @@ interface HeaderProps {
   onUpdate: () => void;
   isLoading: boolean;
   lastUpdated: Date;
+  isAutoSync: boolean;
+  onAutoSyncChange: (value: boolean) => void;
 }
 
 const formatTimeAgo = (date: Date): string => {
@@ -24,9 +26,8 @@ const formatTimeAgo = (date: Date): string => {
   return Math.floor(seconds) + " segundos atrás";
 };
 
-const Header: React.FC<HeaderProps> = ({ onUpdate, isLoading, lastUpdated }) => {
+const Header: React.FC<HeaderProps> = ({ onUpdate, isLoading, lastUpdated, isAutoSync, onAutoSyncChange }) => {
   const [isSystemOn, setIsSystemOn] = useState(false);
-  const [isAutoSync, setIsAutoSync] = useState(true);
   const [timeAgo, setTimeAgo] = useState(formatTimeAgo(lastUpdated));
 
   useEffect(() => {
@@ -59,7 +60,7 @@ const Header: React.FC<HeaderProps> = ({ onUpdate, isLoading, lastUpdated }) => 
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm">Auto-sync</span>
-          <ToggleSwitch checked={isAutoSync} onChange={setIsAutoSync} />
+          <ToggleSwitch checked={isAutoSync} onChange={onAutoSyncChange} />
         </div>
       </div>
       <button 
