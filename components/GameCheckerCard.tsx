@@ -7,6 +7,8 @@ interface GameCheckerCardProps {
   lastResult: LastResult;
 }
 
+const COST_PER_GAME = 3.00;
+
 const parsePrize = (prizeStr: string): number => {
     if (!prizeStr) return 0;
     // Remove "R$ ", dots for thousands, and replace comma with dot for decimal
@@ -75,8 +77,11 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
   const summary = useMemo(() => {
     if (checkResults.length === 0) return null;
 
+    const totalGames = checkResults.length;
+    const totalCost = totalGames * COST_PER_GAME;
     const winningGames = checkResults.filter(r => r.prize > 0);
     const totalWinnings = winningGames.reduce((acc, game) => acc + game.prize, 0);
+    const netResult = totalWinnings - totalCost;
     
     const hitsDistribution = new Map<number, number>();
     winningGames.forEach(game => {
@@ -87,9 +92,11 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
       .sort((a, b) => b[0] - a[0]); // Sort by number of hits, descending
 
     return { 
-        totalGames: checkResults.length, 
+        totalGames, 
         totalWinningGames: winningGames.length, 
         totalWinnings, 
+        totalCost,
+        netResult,
         sortedDistribution 
     };
   }, [checkResults]);
@@ -116,7 +123,7 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
       </div>
       
       <p className="text-sm text-gray-400 mb-4">
-        Cole seus jogos abaixo ou importe um arquivo .txt para conferir com o resultado do concurso {lastResult.concurso}.
+        Cole seus jogos abaixo ou importe um arquivo .txt para conferir com o resultado do concurso {lastResult.concurso}. Cada jogo tem o custo de R$ {COST_PER_GAME.toFixed(2)}.
       </p>
       
       <textarea
@@ -132,21 +139,32 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
       {summary && (
         <div className="mt-6 animate-fade-in">
           <h3 className="font-semibold text-lg text-blue-300 mb-4">Relatório da Conferência</h3>
-            <div className="bg-black/20 p-4 rounded-lg grid grid-cols-2 md:grid-cols-3 gap-4 mb-4 text-center">
+            <div className="bg-black/20 p-4 rounded-lg grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4 text-center">
                 <div>
-                    <p className="text-xs text-gray-400 uppercase font-semibold">Total Faturado</p>
-                    <p className="text-2xl font-bold text-green-400 flex items-center justify-center gap-2">
-                        <CurrencyDollarIcon className="w-6 h-6" />
+                    <p className="text-xs text-gray-400 uppercase font-semibold">Ganhos Totais</p>
+                    <p className="text-xl font-bold text-green-400 flex items-center justify-center gap-1">
+                        <CurrencyDollarIcon className="w-5 h-5" />
                         {summary.totalWinnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                 </div>
                 <div>
-                    <p className="text-xs text-gray-400 uppercase font-semibold">Jogos Conferidos</p>
-                    <p className="text-2xl font-bold text-white">{summary.totalGames}</p>
+                    <p className="text-xs text-gray-400 uppercase font-semibold">Valor Gasto</p>
+                    <p className="text-xl font-bold text-red-400 flex items-center justify-center gap-1">
+                        <CurrencyDollarIcon className="w-5 h-5" />
+                        {summary.totalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
                 </div>
                 <div>
                     <p className="text-xs text-gray-400 uppercase font-semibold">Jogos Premiados</p>
-                    <p className="text-2xl font-bold text-white">{summary.totalWinningGames}</p>
+                    <p className="text-xl font-bold text-white">{summary.totalWinningGames} / {summary.totalGames}</p>
+                </div>
+                <div>
+                    <p className="text-xs text-gray-400 uppercase font-semibold">Lucro / Prejuízo</p>
+                    <p className={`text-xl font-bold flex items-center justify-center gap-1 ${summary.netResult >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {summary.netResult >= 0 ? '+' : ''}
+                        <CurrencyDollarIcon className="w-5 h-5" />
+                        {summary.netResult.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
                 </div>
             </div>
             

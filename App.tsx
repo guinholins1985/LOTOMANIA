@@ -69,7 +69,7 @@ const App: React.FC = () => {
       const intervalId = setInterval(() => {
         console.log("Auto-syncing latest results...");
         fetchLatestResult();
-      }, 300000); // 5 minutes
+      }, 86400000); // 24 hours
 
       return () => clearInterval(intervalId);
     }
