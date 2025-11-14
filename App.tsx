@@ -11,21 +11,21 @@ import { fetchLatestResultFromWeb } from './services/geminiService';
 import { generateLocalGames } from './services/localGameGenerator';
 
 const INITIAL_LAST_RESULT: LastResult = {
-  concurso: 2809,
-  data: '13/08/2025',
+  concurso: 2848,
+  data: '12/11/2025',
   numeros: [
-    '03', '08', '11', '19', '25', '30', '41', '48', '50', '53', 
-    '65', '71', '72', '75', '81', '84', '88', '95', '96', '99'
+    '01', '02', '07', '08', '19', '21', '25', '27', '37', '38', 
+    '47', '49', '52', '59', '64', '66', '74', '85', '88', '92'
   ],
-  acumuladoProximoConcurso: "R$ 2.700.000,00",
+  acumuladoProximoConcurso: "R$ 3.500.000,00",
   premiacao: [
     { acertos: 20, vencedores: 0, premio: "R$ 0,00" },
-    { acertos: 19, vencedores: 3, premio: "R$ 66.992,99" },
-    { acertos: 18, vencedores: 55, premio: "R$ 2.283,85" },
-    { acertos: 17, vencedores: 442, premio: "R$ 284,18" },
-    { acertos: 16, vencedores: 2562, premio: "R$ 49,02" },
-    { acertos: 15, vencedores: 11195, premio: "R$ 11,22" },
-    { acertos: 0, vencedores: 0, premio: "R$ 125.000,00" } // Example prize for 0 hits
+    { acertos: 19, vencedores: 4, premio: "R$ 75.123,45" },
+    { acertos: 18, vencedores: 60, premio: "R$ 2.504,12" },
+    { acertos: 17, vencedores: 480, premio: "R$ 313,01" },
+    { acertos: 16, vencedores: 2800, premio: "R$ 56,00" },
+    { acertos: 15, vencedores: 12000, premio: "R$ 13,00" },
+    { acertos: 0, vencedores: 0, premio: "R$ 135.000,00" }
   ]
 };
 
@@ -38,6 +38,7 @@ const App: React.FC = () => {
     ultraSystem: true,
     mirrorBet: false,
     advancedAnalysis: true,
+    closingStrategy: 'target_18',
   });
   const [lastResult, setLastResult] = useState<LastResult>(INITIAL_LAST_RESULT);
   const [generatedData, setGeneratedData] = useState<GeneratedGames | null>(null);

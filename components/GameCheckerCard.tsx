@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { LastResult } from '../types';
 import { UploadIcon, XCircleIcon, CurrencyDollarIcon, TrophyIcon, CalendarIcon, ChartBarIcon } from './Icons';
-import { CheckedGame } from '../types';
+import { CheckedGame, SummaryData } from '../types';
 import { fetchResultByConcurso } from '../services/geminiService';
 
 interface GameCheckerCardProps {
@@ -15,17 +15,7 @@ const parsePrize = (prizeStr: string): number => {
     return parseFloat(prizeStr.replace("R$ ", "").replace(/\./g, "").replace(",", "."));
 };
 
-type SummaryData = {
-    totalGames: number;
-    totalWinningGames: number;
-    totalWinnings: number;
-    totalCost: number;
-    netResult: number;
-    sortedDistribution: [number, number][];
-};
-
-
-const calculateSummary = (checkResults: CheckedGame[]): SummaryData | null => {
+const calculateSummary = (checkResults: CheckedGame[], hasPrizeData: boolean): SummaryData | null => {
     if (checkResults.length === 0) return null;
 
     const totalGames = checkResults.length;
@@ -48,7 +38,8 @@ const calculateSummary = (checkResults: CheckedGame[]): SummaryData | null => {
         totalWinnings, 
         totalCost,
         netResult,
-        sortedDistribution 
+        sortedDistribution,
+        hasPrizeData
     };
 };
 
@@ -95,7 +86,6 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
         
         const fetchedResults = await Promise.all(
             concursosToCheck.map(concurso => {
-                // Use local lastResult if it matches to save an API call
                 if (concurso === lastResult.concurso) {
                     return Promise.resolve(lastResult);
                 }
@@ -114,18 +104,22 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
         for (const resultToUse of fetchedResults) {
             const resultNumbers = new Set(resultToUse.numeros);
             const prizeMap = new Map<number, number>();
-            resultToUse.premiacao.forEach(p => {
-                prizeMap.set(p.acertos, parsePrize(p.premio));
-            });
+            const hasPrizeData = resultToUse.premiacao && resultToUse.premiacao.length > 0;
+
+            if (hasPrizeData) {
+              resultToUse.premiacao.forEach(p => {
+                  prizeMap.set(p.acertos, parsePrize(p.premio));
+              });
+            }
 
             const details: CheckedGame[] = parsedGames.map(gameNumbers => {
               const hitNumbers = new Set(gameNumbers.filter(num => resultNumbers.has(num)));
               const hits = hitNumbers.size;
-              const prize = prizeMap.get(hits) || 0;
+              const prize = hasPrizeData ? (prizeMap.get(hits) || 0) : -1;
               return { game: gameNumbers, hits, hitNumbers, prize };
             });
 
-            const summary = calculateSummary(details);
+            const summary = calculateSummary(details, hasPrizeData);
             if (summary) {
                 resultsByConcurso.set(resultToUse.concurso, { summary, details, concursoData: resultToUse });
             }
@@ -134,13 +128,18 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
 
         // Calculate Grand Summary
         const totalGames = parsedGames.length;
-        const totalCost = totalGames * COST_PER_GAME;
+        let totalCost = 0;
         let totalWinnings = 0;
         let totalWinningInstances = 0;
         const grandHitsDistribution = new Map<number, number>();
+        let anyPrizeDataAvailable = false;
 
         resultsByConcurso.forEach(result => {
-            totalWinnings += result.summary.totalWinnings;
+            totalCost = result.summary.totalCost; // Cost is per-contest check, not aggregated
+            if (result.summary.hasPrizeData) {
+              anyPrizeDataAvailable = true;
+              totalWinnings += result.summary.totalWinnings;
+            }
             totalWinningInstances += result.summary.totalWinningGames;
             result.summary.sortedDistribution.forEach(([hits, count]) => {
                 grandHitsDistribution.set(hits, (grandHitsDistribution.get(hits) || 0) + count);
@@ -148,12 +147,13 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
         });
         
         setGrandSummary({
-            totalGames,
+            totalGames: parsedGames.length * concursosToCheck.length,
             totalWinningGames: totalWinningInstances,
             totalWinnings,
-            totalCost,
-            netResult: totalWinnings - totalCost,
-            sortedDistribution: Array.from(grandHitsDistribution.entries()).sort((a, b) => b[0] - a[0])
+            totalCost: parsedGames.length * COST_PER_GAME * concursosToCheck.length,
+            netResult: totalWinnings - (parsedGames.length * COST_PER_GAME * concursosToCheck.length),
+            sortedDistribution: Array.from(grandHitsDistribution.entries()).sort((a, b) => b[0] - a[0]),
+            hasPrizeData: anyPrizeDataAvailable
         });
 
     } catch (e) {
@@ -197,6 +197,15 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
       }
   }
 
+  const contestRange = useMemo(() => {
+    const startNum = parseInt(startConcurso, 10);
+    const endNum = endConcurso ? parseInt(endConcurso, 10) : startNum;
+    if (!isNaN(startNum) && startNum > 0 && !isNaN(endNum) && endNum >= startNum) {
+        return endNum - startNum + 1;
+    }
+    return 1;
+  }, [startConcurso, endConcurso]);
+
   return (
     <div className="bg-[#1A1A2E] p-6 rounded-2xl border-t-2 border-l-2 border-blue-500/50 shadow-2xl shadow-blue-500/10">
       <div className="flex justify-between items-center mb-4">
@@ -220,6 +229,10 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
       
       <p className="text-sm text-gray-400 mb-4">
         Cole seus jogos abaixo ou importe um arquivo .txt para conferir com o resultado de um ou mais concursos. Cada jogo tem o custo de R$ {COST_PER_GAME.toFixed(2)}.
+      </p>
+
+      <p className="text-xs text-yellow-400 mb-4 bg-yellow-500/10 p-2 rounded-md border border-yellow-500/30">
+        <strong>Aviso:</strong> A conferência em um grande intervalo de concursos (<strong>{contestRange} selecionado{contestRange > 1 ? 's' : ''}</strong>) busca dados da fonte oficial. Os resultados são salvos localmente para otimizar buscas futuras. Em caso de falha na rede, o sistema usará o banco de dados histórico local (sem dados de prêmios).
       </p>
       
       <textarea
@@ -276,10 +289,12 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center">
                 <div>
                     <p className="text-xs text-gray-400 uppercase font-semibold">Ganhos Totais</p>
-                    <p className="text-xl font-bold text-green-400 flex items-center justify-center gap-1">
-                        <CurrencyDollarIcon className="w-5 h-5" />
-                        {grandSummary.totalWinnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
+                    {grandSummary.hasPrizeData ? (
+                        <p className="text-xl font-bold text-green-400 flex items-center justify-center gap-1">
+                            <CurrencyDollarIcon className="w-5 h-5" />
+                            {grandSummary.totalWinnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                    ) : <p className="text-xl font-bold text-yellow-400">N/A</p> }
                 </div>
                  <div>
                     <p className="text-xs text-gray-400 uppercase font-semibold">Valor Gasto</p>
@@ -294,11 +309,13 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
                 </div>
                  <div>
                     <p className="text-xs text-gray-400 uppercase font-semibold">Lucro / Prejuízo</p>
-                    <p className={`text-xl font-bold flex items-center justify-center gap-1 ${grandSummary.netResult >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {grandSummary.netResult >= 0 ? '+' : ''}
-                        <CurrencyDollarIcon className="w-5 h-5" />
-                        {grandSummary.netResult.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
+                     {grandSummary.hasPrizeData ? (
+                        <p className={`text-xl font-bold flex items-center justify-center gap-1 ${grandSummary.netResult >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {grandSummary.netResult >= 0 ? '+' : ''}
+                            <CurrencyDollarIcon className="w-5 h-5" />
+                            {grandSummary.netResult.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                     ) : <p className="text-xl font-bold text-yellow-400">N/A</p> }
                 </div>
             </div>
         </div>
@@ -310,10 +327,12 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
             <div className="bg-black/20 p-4 rounded-lg grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4 text-center">
                 <div>
                     <p className="text-xs text-gray-400 uppercase font-semibold">Ganhos Totais</p>
-                    <p className="text-xl font-bold text-green-400 flex items-center justify-center gap-1">
-                        <CurrencyDollarIcon className="w-5 h-5" />
-                        {summary.totalWinnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
+                    {summary.hasPrizeData ? (
+                        <p className="text-xl font-bold text-green-400 flex items-center justify-center gap-1">
+                            <CurrencyDollarIcon className="w-5 h-5" />
+                            {summary.totalWinnings.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                    ) : <p className="text-xl font-bold text-yellow-400">N/A</p>}
                 </div>
                 <div>
                     <p className="text-xs text-gray-400 uppercase font-semibold">Custo (Jogos)</p>
@@ -328,11 +347,13 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
                 </div>
                 <div>
                     <p className="text-xs text-gray-400 uppercase font-semibold">Resultado</p>
-                    <p className={`text-xl font-bold flex items-center justify-center gap-1 ${summary.netResult >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {summary.netResult >= 0 ? '+' : ''}
-                        <CurrencyDollarIcon className="w-5 h-5" />
-                        {summary.netResult.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
+                    {summary.hasPrizeData ? (
+                        <p className={`text-xl font-bold flex items-center justify-center gap-1 ${summary.netResult >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {summary.netResult >= 0 ? '+' : ''}
+                            <CurrencyDollarIcon className="w-5 h-5" />
+                            {summary.netResult.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                    ) : <p className="text-xl font-bold text-yellow-400">N/A</p>}
                 </div>
             </div>
             
@@ -359,6 +380,16 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
                      {result.prize > 0 && (
                         <span className="font-bold text-green-400 text-sm">
                             Prêmio: R$ {result.prize.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                     )}
+                     {result.prize === 0 && (
+                        <span className="font-bold text-gray-400 text-sm">
+                            Não Premiado
+                        </span>
+                     )}
+                      {result.prize < 0 && (
+                        <span className="font-bold text-yellow-400 text-sm">
+                            Prêmio N/A
                         </span>
                      )}
                      <span className={`font-bold px-3 py-1 rounded-full text-sm ${
