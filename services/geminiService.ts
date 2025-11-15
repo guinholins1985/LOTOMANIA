@@ -38,7 +38,7 @@ const transformApiDataToLastResult = (apiData: any): LastResult => {
             vencedores: item.numeroDeGanhadores,
             premio: formatCurrency(item.valorPremio)
         };
-    });
+    }).filter((p: Premiacao) => p.acertos >= 15);
 
     return {
         concurso: apiData.numero,

@@ -168,17 +168,39 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
   }, [gamesToCheck, lastResult, startConcurso, endConcurso]);
   
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        setGamesToCheck(text);
-      };
-      reader.readAsText(file);
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      return;
     }
+
+    setCheckError(null);
+
+    // FIX: Explicitly type the 'file' parameter as 'File' to resolve type inference issues.
+    const promises = Array.from(files).map((file: File) => {
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve(e.target?.result as string);
+        };
+        reader.onerror = () => {
+          reject(new Error(`Erro ao ler o arquivo ${file.name}`));
+        };
+        reader.readAsText(file);
+      });
+    });
+
+    Promise.all(promises)
+      .then(contents => {
+        const newContent = contents.join('\n');
+        setGamesToCheck(prev => (prev.trim() ? prev.trim() + '\n' : '') + newContent);
+      })
+      .catch((error: Error) => {
+        setCheckError(error.message);
+      });
+
+    // Reset file input to allow re-uploading the same file
     if (event.target) {
-        event.target.value = '';
+      event.target.value = '';
     }
   };
 
@@ -213,11 +235,11 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
         <div className="flex items-center gap-2">
            <input
             type="file" ref={fileInputRef} onChange={handleFileImport}
-            accept=".txt" className="hidden"
+            accept=".txt" className="hidden" multiple
           />
           <button onClick={triggerFileUpload} className="flex items-center gap-2 text-xs text-cyan-300 font-semibold py-1 px-2 rounded-md bg-cyan-500/20 hover:bg-cyan-500/40 transition-colors" >
             <UploadIcon className="w-4 h-4" />
-            <span>Importar TXT</span>
+            <span>Importar Arquivo(s)</span>
           </button>
            { (gamesToCheck || multiCheckResults.size > 0) &&
             <button onClick={clearChecker} className="text-gray-400 hover:text-white transition-colors">
@@ -228,7 +250,7 @@ const GameCheckerCard: React.FC<GameCheckerCardProps> = ({ lastResult }) => {
       </div>
       
       <p className="text-sm text-gray-400 mb-4">
-        Cole seus jogos abaixo ou importe um arquivo .txt para conferir com o resultado de um ou mais concursos. Cada jogo tem o custo de R$ {COST_PER_GAME.toFixed(2)}.
+        Cole seus jogos abaixo ou importe um ou mais arquivos .txt para conferir com o resultado de um ou mais concursos. Cada jogo tem o custo de R$ {COST_PER_GAME.toFixed(2)}.
       </p>
 
       <p className="text-xs text-yellow-400 mb-4 bg-yellow-500/10 p-2 rounded-md border border-yellow-500/30">

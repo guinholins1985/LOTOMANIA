@@ -25,7 +25,6 @@ const INITIAL_LAST_RESULT: LastResult = {
     { acertos: 17, vencedores: 480, premio: "R$ 313,01" },
     { acertos: 16, vencedores: 2800, premio: "R$ 56,00" },
     { acertos: 15, vencedores: 12000, premio: "R$ 13,00" },
-    { acertos: 0, vencedores: 0, premio: "R$ 135.000,00" }
   ]
 };
 
